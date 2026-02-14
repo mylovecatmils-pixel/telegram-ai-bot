@@ -189,27 +189,45 @@ def save_animation_config(config):
     except:
         pass
 
-def get_animation_settings(chat_id):
+def get_animation_settings(chat_id=None):
     config = load_animation_config()
-    chat_key = str(chat_id)
-    if chat_key in config:
-        settings = config[chat_key]
+    
+    # Try getting chat specific settings first
+    if chat_id:
+        chat_key = str(chat_id)
+        if chat_key in config:
+            settings = config[chat_key]
+            return {
+                'mode': settings.get('mode'),
+                'font': settings.get('font'),
+                'duration': settings.get('duration', 40),
+                'interval': settings.get('interval', 0.5)
+            }
+            
+    # Fallback to global settings
+    if 'global' in config:
+        settings = config['global']
         return {
             'mode': settings.get('mode'),
             'font': settings.get('font'),
             'duration': settings.get('duration', 40),
             'interval': settings.get('interval', 0.5)
         }
+        
     return {'mode': None, 'font': None, 'duration': 40, 'interval': 0.5}
 
 def set_animation_mode(chat_id, mode, font=None):
     config = load_animation_config()
-    chat_key = str(chat_id)
-    if chat_key not in config:
-        config[chat_key] = {'duration': 40, 'interval': 0.5}
-    config[chat_key]['mode'] = mode
+    # Always use global for now to ensure bot menu works everywhere
+    key = 'global' 
+    
+    if key not in config:
+        config[key] = {'duration': 40, 'interval': 0.5}
+        
+    config[key]['mode'] = mode
     if font is not None:
-        config[chat_key]['font'] = font
+        config[key]['font'] = font
+        
     save_animation_config(config)
 
 def load_mute_config():
@@ -931,7 +949,7 @@ async def show_deleted_for_user(event, user_id, page=0, back_to_page=0):
     await event.edit(content, buttons=buttons)
 
 async def show_anim_menu(event):
-    settings = get_animation_settings(event.chat_id)
+    settings = get_animation_settings() # Global settings
     mode = settings['mode']
     font = settings['font']
     
@@ -1159,26 +1177,26 @@ async def bot_callback_handler(event):
     # --- ANIM ACTIONS ---
     elif data.startswith('anim_'):
         config = load_animation_config()
-        chat_str = str(event.chat_id)
-        if chat_str not in config:
-            config[chat_str] = {'mode': None, 'font': None, 'duration': 40, 'interval': 0.5}
+        key = 'global'
+        if key not in config:
+            config[key] = {'mode': None, 'font': None, 'duration': 40, 'interval': 0.5}
         
         if data == 'anim_rainbow':
-            config[chat_str]['mode'] = 'rainbow' if config[chat_str]['mode'] != 'rainbow' else None
+            config[key]['mode'] = 'rainbow' if config[key]['mode'] != 'rainbow' else None
         elif data == 'anim_caps':
-            config[chat_str]['mode'] = 'caps' if config[chat_str]['mode'] != 'caps' else None
+            config[key]['mode'] = 'caps' if config[key]['mode'] != 'caps' else None
         elif data == 'anim_font_menu':
             save_animation_config(config)
             await show_font_menu(event)
             return
         elif data == 'anim_dur_plus':
-            config[chat_str]['duration'] += 10
+            config[key]['duration'] += 10
         elif data == 'anim_dur_minus':
-            config[chat_str]['duration'] = max(10, config[chat_str]['duration'] - 10)
+            config[key]['duration'] = max(10, config[key]['duration'] - 10)
         elif data == 'anim_int_plus':
-            config[chat_str]['interval'] += 0.5
+            config[key]['interval'] += 0.5
         elif data == 'anim_int_minus':
-            config[chat_str]['interval'] = max(0.5, config[chat_str]['interval'] - 0.5)
+            config[key]['interval'] = max(0.5, config[key]['interval'] - 0.5)
         
         save_animation_config(config)
         await show_anim_menu(event)
@@ -1190,10 +1208,11 @@ async def bot_callback_handler(event):
             font = None
         
         config = load_animation_config()
-        chat_str = str(event.chat_id)
-        if chat_str not in config:
-            config[chat_str] = {'mode': None, 'duration': 40, 'interval': 0.5}
-        config[chat_str]['font'] = font
+        key = 'global'
+        if key not in config:
+            config[key] = {'mode': None, 'duration': 40, 'interval': 0.5}
+            
+        config[key]['font'] = font
         save_animation_config(config)
         await show_anim_menu(event)
 
