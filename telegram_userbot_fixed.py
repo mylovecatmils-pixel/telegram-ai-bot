@@ -1076,16 +1076,37 @@ async def animate_caps(message_obj, text, duration, interval):
         except:
             break
 
-async def run_animation(message_obj, text, anim_type, duration=40, interval=0.5):
+async def run_animation(message_obj, text, anim_type, duration=40, interval=0.5, font=None):
+    # Apply static font if provided and anim_type is a specific animation (rainbow/caps)
+    if font and font in FONTS:
+        try:
+            text = FONTS[font](text)
+        except:
+            pass
+            
     if anim_type == 'rainbow': 
         await animate_rainbow(message_obj, text, duration, interval)
     elif anim_type == 'caps': 
         await animate_caps(message_obj, text, duration, interval)
     elif anim_type in FONTS:
-        # Static font application
+        # Static font application (if mode IS the font)
         try:
-            new_text = FONTS[anim_type](text)
-            await message_obj.edit(new_text)
+            # If we already applied font above, this might be double, but usually mode=font implies font=None in settings
+            if not font: 
+                new_text = FONTS[anim_type](text)
+                await message_obj.edit(new_text)
+            else:
+                 # If mode is a font AND font is set, mode takes precedence or they stack?
+                 # Current logic: if mode is font, we treat it as static transform.
+                 # If we already applied 'font', text is already transformed. 
+                 # So we just edit with 'text' which is already processed.
+                await message_obj.edit(text)
+        except:
+            pass
+    elif font:
+        # If mode is None/Unknown but font is set (and passed to run_animation)
+        try:
+            await message_obj.edit(text)
         except:
             pass
 
