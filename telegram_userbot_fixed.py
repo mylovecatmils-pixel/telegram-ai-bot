@@ -259,58 +259,7 @@ def get_muted_users(chat_id):
     return config.get(chat_key, {})
 
 # ============ АНИМАЦИОННЫЕ ФУНКЦИИ ============
-async def animate_rainbow(message_obj, text, duration=40, interval=0.5):
-    frames_count = int(duration / interval)
-    colors = ['🔴', '🟠', '🟡', '🟢', '🔵', '🟣', '🟤']
-    for frame in range(frames_count):
-        color_bar = ''.join([colors[(i+frame)%len(colors)] for i in range(len(colors))])
-        progress = int((frame / frames_count) * 10)
-        bar = '▰' * progress + '▱' * (10 - progress)
-        try:
-            await message_obj.edit(f'{color_bar}\n{text}\n{bar}')
-            await asyncio.sleep(interval)
-        except:
-            break
-    try:
-        await message_obj.edit(f'🌈 {text}')
-    except:
-        pass
-
-async def animate_caps(message_obj, text, duration=40, interval=0.5):
-    frames_count = int(duration / interval)
-    try:
-        await message_obj.edit(text)
-        await asyncio.sleep(interval)
-    except:
-        pass
-    
-    for frame in range(1, frames_count - 1):
-        if frame % 2 == 1:
-            new_text = ''.join([c.upper() if i % 2 == 1 else c.lower() for i, c in enumerate(text)])
-        else:
-            new_text = ''.join([c.upper() if i % 2 == 0 else c.lower() for i, c in enumerate(text)])
-        try:
-            await message_obj.edit(new_text)
-            await asyncio.sleep(interval)
-        except:
-            break
-    
-    try:
-        await message_obj.edit(text)
-    except:
-        pass
-
-async def run_animation(message_obj, text, anim_type, duration=40, interval=0.5, font=None):
-    # Применяем шрифт если указан
-    if font and font in FONTS:
-        text = FONTS[font](text)
-    
-    animations = {
-        'rainbow': animate_rainbow,
-        'caps': animate_caps
-    }
-    if anim_type in animations:
-        await animations[anim_type](message_obj, text, duration, interval)
+# (See run_animation ~line 900)
 
 # ============ ОСТАЛЬНЫЕ БАЗОВЫЕ ФУНКЦИИ ============
 def load_active_chats():
@@ -919,7 +868,8 @@ async def show_saver_browser(event, page=0):
     
     buttons = []
     for sid, name, count in current_page_items:
-        buttons.append([Button.inline(f"👤 {name} ({count})", f'svr_view_{sid}'.encode())])
+        # Pass page number in callback to return to it later
+        buttons.append([Button.inline(f"👤 {name} ({count})", f'svr_view_{sid}_{page}'.encode())])
     
     nav_buttons = []
     if page > 0:
@@ -933,10 +883,11 @@ async def show_saver_browser(event, page=0):
     
     await event.edit(f"📉 **𝐃𝐄𝐋𝐄𝐓𝐄𝐃 𝐌𝐄𝐒𝐒𝐀𝐆𝐄𝐒**\nSelect a user to view:", buttons=buttons)
 
-async def show_deleted_for_user(event, user_id, page=0):
+async def show_deleted_for_user(event, user_id, page=0, back_to_page=0):
     msgs = get_deleted_messages(sender_id=user_id)
     if not msgs:
-        await event.edit("📭 Empty", buttons=[[Button.inline('🔙 Back', b'svr_browse')]])
+        # If empty, go back to browser on the correct page
+        await show_saver_browser(event, page=back_to_page)
         return
         
     ITEMS_PER_PAGE = 1
@@ -952,22 +903,30 @@ async def show_deleted_for_user(event, user_id, page=0):
         text_type = "🎥 𝐕𝐢𝐝𝐞𝐨"
     elif msg.get('has_voice'):
         text_type = "🎤 𝐕𝐨𝐢𝐜𝐞"
+    elif msg.get('has_document'):
+        text_type = "📄 𝐃𝐨𝐜"
     
     content = f"🗑️ **𝐃𝐄𝐋𝐄𝐓𝐄𝐃 𝐌𝐒𝐆** ({start+1}/{len(msgs)})\n"
     content += f"👤 **𝐔𝐬𝐞𝐫:** {msg.get('sender_name')}\n"
+    content += f"🆔 **𝐈𝐃:** `{msg.get('sender_id', '?')}`\n"
+    if msg.get('chat_title'):
+        content += f"💬 **𝐆𝐫𝐨𝐮𝐩:** {msg.get('chat_title')}\n"
     content += f"🕒 **𝐓𝐢𝐦𝐞:** {msg.get('deleted_at', '')[:16]}\n"
     content += f"🏷️ **𝐓𝐲𝐩𝐞:** {text_type}\n"
-    content += f"💬 **𝐂𝐨𝐧𝐭𝐞𝐧𝐭:**\n`{msg.get('text', '')}`"
+    content += f"📝 **𝐂𝐨𝐧𝐭𝐞𝐧𝐭:**\n`{msg.get('text', '')}`"
     
     buttons = []
     nav = []
+    # Pass back_to_page in navigation callbacks
     if page > 0:
-        nav.append(Button.inline('⬅️', f'svr_u_{user_id}_{page-1}'.encode()))
+        nav.append(Button.inline('⬅️', f'svr_u_{user_id}_{page-1}_{back_to_page}'.encode()))
     if start + 1 < len(msgs):
-        nav.append(Button.inline('➡️', f'svr_u_{user_id}_{page+1}'.encode()))
+        nav.append(Button.inline('➡️', f'svr_u_{user_id}_{page+1}_{back_to_page}'.encode()))
     if nav:
         buttons.append(nav)
-    buttons.append([Button.inline('🔙 𝐁𝐚𝐜𝐤', b'svr_browse')])
+    
+    # Back button returns to the specific page of the list
+    buttons.append([Button.inline('🔙 𝐁𝐚𝐜𝐤', f'svr_page_{back_to_page}'.encode())])
     
     await event.edit(content, buttons=buttons)
 
@@ -1049,6 +1008,19 @@ async def show_about_menu(event):
         msg = await event.respond(text, buttons=buttons)
         if event.chat_id:
             last_menu_msg[event.chat_id] = msg.id
+
+async def run_animation(message_obj, text, anim_type, duration=40, interval=0.5):
+    if anim_type == 'rainbow': 
+        await animate_rainbow(message_obj, text, duration, interval)
+    elif anim_type == 'caps': 
+        await animate_caps(message_obj, text, duration, interval)
+    elif anim_type in FONTS:
+        # Static font application
+        try:
+            new_text = FONTS[anim_type](text)
+            await message_obj.edit(new_text)
+        except:
+            pass
 
 @bot.on(events.NewMessage(pattern='/start'))
 async def bot_start_handler(event):
@@ -1135,41 +1107,35 @@ async def bot_callback_handler(event):
         await event.answer("ℹ️ Use commands to configure:\n.aiconfig schedule 10 22\n.aiconfig (edit JSON)", alert=True)
 
     # --- SAVER ACTIONS ---
-    elif data.startswith('svr_') and data not in ['svr_browse', 'svr_clear_all', 'svr_clear_text', 'svr_clear_photo', 'svr_clear_video', 'svr_clear_voice'] and not data.startswith('svr_page') and not data.startswith('svr_view') and not data.startswith('svr_u_'):
+    elif data.startswith('svr_') and not any(data.startswith(x) for x in ['svr_browse', 'svr_page', 'svr_view', 'svr_u_']):
         c = load_saver_config()
-        k = {
-            'svr_text': 'save_text',
-            'svr_media': 'save_media',
-            'svr_voice': 'save_voice',
-            'svr_ttl': 'save_ttl_media',
-            'svr_bots': 'save_bots',
-            'svr_priv': 'save_private',
-            'svr_grp': 'save_groups'
-        }.get(data)
-        if k:
-            d = True if k not in ['save_ttl_media', 'save_bots', 'save_private', 'save_groups'] else False
-            c[k] = not c.get(k, d)
-            save_saver_config(c)
-        await show_saver_menu(event)
+        k = {'svr_text':'save_text','svr_media':'save_media','svr_voice':'save_voice','svr_ttl':'save_ttl_media','svr_priv':'save_private','svr_grp':'save_groups','svr_bots' : 'save_bots'}[data]
+        d = True if k not in ['save_ttl_media','save_private','save_groups','save_bots'] else False
+        c[k] = not c.get(k, d); save_saver_config(c); await show_saver_menu(event)
         
-    elif data == 'svr_browse':
-        await show_saver_browser(event)
-    elif data.startswith('svr_page_'):
-        await show_saver_browser(event, int(data.split('_')[2]))
+    elif data == 'svr_browse': await show_saver_browser(event)
+    elif data.startswith('svr_page_'): await show_saver_browser(event, int(data.split('_')[2]))
+    
     elif data.startswith('svr_view_'):
-        await show_deleted_for_user(event, int(data.split('_')[2]))
-    elif data.startswith('svr_u_'):
+        parts = data.split('_') # svr_view_sid_page
+        sid = int(parts[2])
+        page = int(parts[3]) if len(parts) > 3 else 0
+        await show_deleted_for_user(event, sid, 0, page)
+        
+    elif data.startswith('svr_u_'): 
+        # svr_u_uid_msgpage_backpage
         p = data.split('_')
-        await show_deleted_for_user(event, int(p[2]), int(p[3]))
+        uid = int(p[2])
+        msg_page = int(p[3])
+        back_page = int(p[4]) if len(p) > 4 else 0
+        await show_deleted_for_user(event, uid, msg_page, back_page)
+        
     elif data == 'svr_clear_all':
-        clear_deleted_messages_by_type(None, 'all_global')
-        await event.answer("✅ All deleted messages cleared!", alert=True)
-        await show_saver_menu(event)
+        db = load_deleted_messages_db(); db.clear(); save_deleted_messages_db(db); await event.answer("✅ All deleted messages cleared!", alert=True)
     elif data == 'svr_clear_text':
-        db = load_deleted_messages_db()
-        for chat_key in list(db.keys()):
-            clear_deleted_messages_by_type(int(chat_key), 'text')
-        await event.answer("✅ Text messages cleared!", alert=True)
+        clear_deleted_messages_by_type(event.chat_id, 'text'); await event.answer("✅ Text messages cleared!", alert=True)
+    elif data == 'svr_clear_media':
+        clear_deleted_messages_by_type(event.chat_id, 'photo'); clear_deleted_messages_by_type(event.chat_id, 'video'); await event.answer("✅ Media messages cleared!", alert=True)
         await show_saver_menu(event)
     elif data == 'svr_clear_photo':
         db = load_deleted_messages_db()
@@ -2129,11 +2095,14 @@ async def handle_saver_commands(event, message_text):
                     date_str = m.get("deleted_at", "")[:16].replace('T', ' ')
                     
                     text += f'{i}. {text_type} [{date_str}]\n'
-                    text += f'   💬 {m.get("text", "")[:50]}\n\n'
+                    if m.get('chat_title'):
+                        text += f'   💬 {m.get("chat_title")}\n'
+                    text += f'   {m.get("text", "")[:50]}\n\n'
                 if len(msgs) > 20:
                     text += f'\n...ещё {len(msgs)-20} сообщений\n'
             msg = await event.respond(text)
             
+            # Удаляем выбор если был
             user_selection_state.pop(str(chat_id), None)
             
             await event.delete()
@@ -2154,7 +2123,7 @@ async def handle_digit_selection(event, message_text):
         return False
         
     users = load_temp_selection(chat_id)
-    if users is None:
+    if users === None:
         return False
         
     try:
@@ -2176,7 +2145,10 @@ async def handle_digit_selection(event, message_text):
                     elif m.get('has_document'): text_type = "📄"
                     elif m.get('has_voice'): text_type = "🎤"
                     text += f'{i}. {text_type} [{m.get("deleted_at", "")[:16]}]\n'
-                    text += f'   Чат: `{m.get("chat_id")}`\n'
+                    if m.get('chat_title'):
+                        text += f'   💬 {m.get("chat_title")}\n'
+                    else:
+                        text += f'   Chat: `{m.get("chat_id")}`\n'
                     text += f'   {m.get("text", "")[:50]}\n\n'
                 if len(msgs) > 30:
                     text += f'\n...ещё {len(msgs)-30} сообщений'
@@ -2231,47 +2203,48 @@ async def handle_animation_commands(event, message_text):
     await delete_previous_command(chat_id)
     
     if message_text.lower() == '.anim help':
-        help_text = '''🎬 **КОМАНДЫ АНИМАЦИЙ**
+        help_text = '''🎬 **АНИМАЦИИ И ШРИФТЫ**
 
-**ТИПЫ:**
-• rainbow 🌈 - радужная анимация
-• caps 🔤 - чередование регистра
+🎨 **ДОСТУПНЫЕ СТИЛИ:**
+🌈 `rainbow` - Радужная анимация
+🔤 `caps` - MиГаЮщИй ТеКсТ
+🔡 `normal` - Обычный текст
+ⓑ `bubbles` - ⓚⓡⓤⓩⓗⓞⓒⓗⓚⓘ
+🅰 `squares` - 🆂🆀🆄🅰🆁🅴🆂
+𝔊 `gothic` - 𝔊𝔬𝔱𝔥𝔦𝔠 𝔗𝔢𝔵𝔱
+𝒞 `cursive` - 𝒞𝓊𝓇𝓈𝒾𝓋ℯ 𝒯ℯ𝓍𝓉
+𝚃 `typewriter` - 𝚃𝚢𝚙𝚎𝚠𝚛𝚒𝚝𝚎𝚛
+ᴀ `special` - ᴍɪɴɪ ᴄᴀᴘs
 
-**ШРИФТЫ:**
-• bold - 𝐁𝐨𝐥𝐝
-• italic - 𝘐𝘵𝘢𝘭𝘪𝘤
-• bolditalic - 𝑩𝒐𝒍𝒅 𝑰𝒕𝒂𝒍𝒊𝒄
-• script - 𝒮𝒸𝓇𝒾𝓅𝓉
-• fraktur - 𝔉𝔯𝔞𝔨𝔱𝔲𝔯
-• smallcaps - ᴀᴧичноᴄᴛь
+🚀 **ЗАПУСК:**
+`.anim <стиль> <текст>`
+Пример: `.anim rainbow Привет!`
+Пример: `.anim bubbles Текст в кружочках`
 
-**ИСПОЛЬЗОВАНИЕ:**
-`.anim <тип> <шрифт> текст`
-Пример: `.anim rainbow smallcaps Привет!`
-Без шрифта: `.anim rainbow Привет!`
-
-**НАСТРОЙКИ:**
-• `.anim mode <тип>` - авто-анимация
-• `.anim mode off` - выключить
-• `.anim font <шрифт>` - установить шрифт
-• `.anim font off` - убрать шрифт
-• `.anim duration <сек>` - длительность
-• `.anim interval <сек>` - интервал
-• `.anim status` - показать настройки'''
+⚙️ **АВТО-РЕЖИМ (ВСЕ СООБЩЕНИЯ):**
+`.anim mode <стиль>` - Включить авто-преобразование
+`.anim mode off` - Выключить
+`.anim duration <сек>` - Длительность (для 🌈/🔤)
+`.anim interval <сек>` - Скорость (для 🌈/🔤)
+`.anim status` - Текущие настройки'''
         msg = await event.respond(help_text)
         await event.delete()
         await register_command_message(chat_id, msg.id)
         return True
     
     if message_text.lower() == '.anim status':
-        settings = get_animation_settings(chat_id)
+        settings = get_animation_settings()
         mode = settings['mode']
-        font = settings['font']
-        status_text = f'🎬 **Статус:**\n'
-        status_text += f'Режим: **{mode.upper() if mode else "ВЫКЛ"}**\n'
-        status_text += f'Шрифт: **{font if font else "ВЫКЛ"}**\n'
-        status_text += f'⏱️ Длительность: {settings["duration"]} сек\n'
-        status_text += f'⏲️ Интервал: {settings["interval"]} сек'
+        font = settings.get('font', 'normal')
+        
+        mode_text = mode.upper() if mode else "ВЫКЛ"
+        
+        status_text = f'🎬 **НАСТРОЙКИ АНИМАЦИИ**\n\n'
+        status_text += f'⚙️ **Авто-режим:** `{mode_text}`\n'
+        status_text += f'🔤 **Шрифт:** `{font}`\n'
+        status_text += f'⏱️ **Длительность:** `{settings["duration"]}с`\n'
+        status_text += f'🚀 **Интервал:** `{settings["interval"]}с`'
+        
         msg = await event.respond(status_text)
         await event.delete()
         await register_command_message(chat_id, msg.id)
@@ -2281,10 +2254,9 @@ async def handle_animation_commands(event, message_text):
         try:
             duration = float(message_text.split()[2])
             config = load_animation_config()
-            chat_key = str(chat_id)
-            if chat_key not in config:
-                config[chat_key] = {'mode': None, 'font': None, 'interval': 0.5}
-            config[chat_key]['duration'] = duration
+            if 'global' not in config:
+                config['global'] = {'mode': None, 'interval': 0.5, 'font': 'normal'}
+            config['global']['duration'] = duration
             save_animation_config(config)
             msg = await event.respond(f'✅ Длительность: {duration} сек')
         except:
@@ -2297,10 +2269,9 @@ async def handle_animation_commands(event, message_text):
         try:
             interval = float(message_text.split()[2])
             config = load_animation_config()
-            chat_key = str(chat_id)
-            if chat_key not in config:
-                config[chat_key] = {'mode': None, 'font': None, 'duration': 40}
-            config[chat_key]['interval'] = interval
+            if 'global' not in config:
+                config['global'] = {'mode': None, 'duration': 40, 'font': 'normal'}
+            config['global']['interval'] = interval
             save_animation_config(config)
             msg = await event.respond(f'✅ Интервал: {interval} сек')
         except:
@@ -2321,30 +2292,9 @@ async def handle_animation_commands(event, message_text):
         if mode == 'off':
             set_animation_mode(chat_id, None)
             msg = await event.respond('❌ Режим ВЫКЛЮЧЕН')
-        elif mode in ['rainbow', 'caps']:
+        elif mode in FONTS or mode in ['rainbow', 'caps']: # Allow all fonts + anims
             set_animation_mode(chat_id, mode)
             msg = await event.respond(f'✅ Режим **{mode.upper()}** включен!')
-        else:
-            msg = await event.respond('❌ Неизвестный режим!')
-        await event.delete()
-        await register_command_message(chat_id, msg.id)
-        return True
-    
-    if message_text.lower().startswith('.anim font '):
-        parts = message_text.split(maxsplit=2)
-        if len(parts) < 3:
-            msg = await event.respond('❌ Формат: `.anim font <шрифт>`')
-            await event.delete()
-            await register_command_message(chat_id, msg.id)
-            return True
-            
-        font = parts[2].lower()
-        if font == 'off':
-            set_animation_mode(chat_id, get_animation_settings(chat_id)['mode'], None)
-            msg = await event.respond('❌ Шрифт ВЫКЛЮЧЕН')
-        elif font in FONTS:
-            set_animation_mode(chat_id, get_animation_settings(chat_id)['mode'], font)
-            msg = await event.respond(f'✅ Шрифт **{font}** установлен!')
         else:
             msg = await event.respond('❌ Неизвестный шрифт!')
         await event.delete()
@@ -2352,25 +2302,21 @@ async def handle_animation_commands(event, message_text):
         return True
     
     if message_text.lower().startswith('.anim '):
-        parts = message_text.split(maxsplit=3)
+        parts = message_text.split(maxsplit=2)
         if len(parts) >= 3:
             anim_type = parts[1].lower()
+            text = parts[2]
             
-            # Проверяем, указан ли шрифт
-            if len(parts) == 4 and parts[2] in FONTS:
-                font = parts[2]
-                text = parts[3]
-            elif len(parts) == 3:
-                font = None
-                text = parts[2]
-            else:
-                return False
-            
-            if anim_type in ['rainbow', 'caps']:
-                await event.delete()
-                settings = get_animation_settings(chat_id)
-                animation_msg = await event.respond('🎬 Запуск...')
-                await run_animation(animation_msg, text, anim_type, settings['duration'], settings['interval'], font)
+            # Allow all fonts + anims (run_animation handles the check)
+            settings = get_animation_settings(chat_id)
+            if anim_type in FONTS or anim_type in ['rainbow', 'caps']:
+                # Send running message
+                animation_msg = await event.respond('🎬') 
+                try:
+                    await event.delete()
+                except: pass
+                
+                await run_animation(animation_msg, text, anim_type, settings['duration'], settings['interval'])
                 return True
     
     return False
