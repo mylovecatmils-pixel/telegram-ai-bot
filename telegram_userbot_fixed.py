@@ -1055,6 +1055,27 @@ async def show_about_menu(event):
         if event.chat_id:
             last_menu_msg[event.chat_id] = msg.id
 
+async def animate_caps(message_obj, text, duration, interval):
+    end_time = datetime.now() + timedelta(seconds=duration)
+    i = 0
+    while datetime.now() < end_time:
+        try:
+            # Alternating caps pattern that shifts
+            new_text = ""
+            for idx, char in enumerate(text):
+                if (idx + i) % 2 == 0:
+                    new_text += char.upper()
+                else:
+                    new_text += char.lower()
+            
+            await message_obj.edit(new_text)
+            i += 1
+            await asyncio.sleep(interval)
+        except MessageNotModifiedError:
+            pass
+        except:
+            break
+
 async def run_animation(message_obj, text, anim_type, duration=40, interval=0.5):
     if anim_type == 'rainbow': 
         await animate_rainbow(message_obj, text, duration, interval)
@@ -2368,6 +2389,34 @@ async def handle_animation_commands(event, message_text):
     
     return False
 
+def get_animation_settings(chat_id=None):
+    config = load_animation_config()
+    
+    # Always use global settings as per user request to sync across all chats
+    if 'global' in config:
+        settings = config['global']
+        return {
+            'mode': settings.get('mode'),
+            'font': settings.get('font'),
+            'duration': settings.get('duration', 40),
+            'interval': settings.get('interval', 0.5)
+        }
+        
+    return {'mode': None, 'font': None, 'duration': 40, 'interval': 0.5}
+
+def set_animation_mode(chat_id, mode, font=None):
+    config = load_animation_config()
+    key = 'global'
+    
+    if key not in config:
+        config[key] = {'duration': 40, 'interval': 0.5}
+        
+    config[key]['mode'] = mode
+    if font is not None:
+        config[key]['font'] = font
+        
+    save_animation_config(config)
+
 # ============ ОБРАБОТЧИКИ СОБЫТИЙ ============
 @client.on(events.NewMessage(incoming=True, from_users=None))
 async def immediate_save_handler(event):
@@ -2401,6 +2450,14 @@ async def immediate_save_handler(event):
         sender_name = getattr(sender, 'first_name', 'Неизвестно')
         if hasattr(sender, 'username') and sender.username:
             sender_name += f' (@{sender.username})'
+            
+        chat_title = None
+        if not is_private:
+            try:
+                chat = await event.get_chat()
+                chat_title = getattr(chat, 'title', None)
+            except:
+                pass
         
         is_ttl_media = False
         if hasattr(event.message, 'media'):
@@ -2420,6 +2477,7 @@ async def immediate_save_handler(event):
             'message_id': message_id,
             'sender_id': sender_id,
             'sender_name': sender_name,
+            'chat_title': chat_title,
             'is_bot': is_bot,
             'text': event.message.message or '',
             'date': event.message.date.isoformat() if event.message.date else None,
@@ -2471,8 +2529,14 @@ async def deleted_message_handler(event):
                 
                 if should_forward and media_path:
                     sender_name = message_data.get('sender_name', 'Неизвестно')
+                    chat_title = message_data.get('chat_title')
                     msg_text = message_data.get('text', '')
-                    full_caption = f"{caption_prefix}\n👤 От: {sender_name}\n🗑️ Удалено: {message_data.get('deleted_at', '')[:16]}"
+                    
+                    full_caption = f"{caption_prefix}\n👤 От: {sender_name}"
+                    if chat_title:
+                        full_caption += f"\n💬 Группа: {chat_title}"
+                        
+                    full_caption += f"\n🗑️ Удалено: {message_data.get('deleted_at', '')[:16]}"
                     if msg_text:
                         full_caption += f"\n📝 Текст: {msg_text[:100]}"
                     
