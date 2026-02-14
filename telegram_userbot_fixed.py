@@ -1251,6 +1251,12 @@ async def bot_callback_handler(event):
         if key not in config:
             config[key] = {'mode': None, 'font': None, 'duration': 40, 'interval': 0.5}
         
+        # Ensure all keys exist
+        if 'duration' not in config[key]: config[key]['duration'] = 40
+        if 'interval' not in config[key]: config[key]['interval'] = 0.5
+        if 'mode' not in config[key]: config[key]['mode'] = None
+        if 'font' not in config[key]: config[key]['font'] = None
+
         if data == 'anim_rainbow':
             config[key]['mode'] = 'rainbow' if config[key]['mode'] != 'rainbow' else None
         elif data == 'anim_caps':
@@ -1280,7 +1286,11 @@ async def bot_callback_handler(event):
         config = load_animation_config()
         key = 'global'
         if key not in config:
-            config[key] = {'mode': None, 'duration': 40, 'interval': 0.5}
+            config[key] = {'mode': None, 'duration': 40, 'interval': 0.5, 'font': None}
+        
+        # Ensure keys exist
+        if 'duration' not in config[key]: config[key]['duration'] = 40
+        if 'interval' not in config[key]: config[key]['interval'] = 0.5
             
         config[key]['font'] = font
         save_animation_config(config)
