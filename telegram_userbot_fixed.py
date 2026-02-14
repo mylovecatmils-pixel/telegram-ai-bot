@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 import aiohttp
 from telethon import TelegramClient, events, Button
-from telethon.errors import RPCError
+from telethon.errors import RPCError, MessageNotModifiedError
 from telethon.tl.types import MessageMediaPhoto, MessageMediaDocument, InputPeerSelf
 
 # ============ КОНФИГУРАЦИЯ ============
@@ -824,7 +824,10 @@ async def show_main_menu(event):
     text = f"🎮 **𝐂𝐎𝐍𝐓𝐑𝐎𝐋 𝐏𝐀𝐍𝐄𝐋**\n\n🛡️ **𝐔𝐬𝐞𝐫:** {OWNER_ID}\n🤖 **𝐁𝐨𝐭:** @{(await bot.get_me()).username}\n\n👇 𝐒𝐞𝐥𝐞𝐜𝐭 𝐂𝐚𝐭𝐞𝐠𝐨𝐫𝐲:"
     
     if hasattr(event, 'data') and event.data:
-        await event.edit(text, buttons=buttons)
+        try:
+            await event.edit(text, buttons=buttons)
+        except MessageNotModifiedError:
+            pass
         return None
     else:
         return await event.respond(text, buttons=buttons)
@@ -853,7 +856,10 @@ async def show_ai_menu(event):
          Button.inline(f'📊 𝐇𝐢𝐬𝐭𝐨𝐫𝐲: {adv.get("max_history", 20)}', b'ai_hist_info')],
         [Button.inline('🔙 𝐁𝐚𝐜𝐤', b'main_menu')]
     ]
-    await event.edit(f"🤖 **𝐀𝐈 𝐂𝐎𝐍𝐅𝐈𝐆𝐔𝐑𝐀𝐓𝐈𝐎𝐍**\n\n🧠 **𝐌𝐨𝐝𝐞𝐥:** `{MODEL_NAME}`", buttons=buttons)
+    try:
+        await event.edit(f"🤖 **𝐀𝐈 𝐂𝐎𝐍𝐅𝐈𝐆𝐔𝐑𝐀𝐓𝐈𝐎𝐍**\n\n🧠 **𝐌𝐨𝐝𝐞𝐥:** `{MODEL_NAME}`", buttons=buttons)
+    except MessageNotModifiedError:
+        pass
 
 async def show_saver_menu(event):
     config = load_saver_config()
@@ -871,12 +877,18 @@ async def show_saver_menu(event):
         [Button.inline('📉 𝐁𝐫𝐨𝐰𝐬𝐞 𝐃𝐞𝐥𝐞𝐭𝐞𝐝', b'svr_browse')],
         [Button.inline('🔙 𝐁𝐚𝐜𝐤', b'main_menu')]
     ]
-    await event.edit("💾 **𝐒𝐀𝐕𝐄𝐑 𝐒𝐄𝐓𝐓𝐈𝐍𝐆𝐒**\n\nConfigure what deleted messages to save.", buttons=buttons)
+    try:
+        await event.edit("💾 **𝐒𝐀𝐕𝐄𝐑 𝐒𝐄𝐓𝐓𝐈𝐍𝐆𝐒**\n\nConfigure what deleted messages to save.", buttons=buttons)
+    except MessageNotModifiedError:
+        pass
 
 async def show_saver_browser(event, page=0):
     senders = get_all_senders_with_deleted()
     if not senders:
-        await event.edit("📭 **𝐍𝐨 𝐃𝐚𝐭𝐚**\nNo deleted messages found.", buttons=[[Button.inline('🔙 𝐁𝐚𝐜𝐤', b'menu_saver')]])
+        try:
+            await event.edit("📭 **𝐍𝐨 𝐃𝐚𝐭𝐚**\nNo deleted messages found.", buttons=[[Button.inline('🔙 𝐁𝐚𝐜𝐤', b'menu_saver')]])
+        except MessageNotModifiedError:
+            pass
         return
 
     ITEMS_PER_PAGE = 5
@@ -899,7 +911,10 @@ async def show_saver_browser(event, page=0):
         buttons.append(nav_buttons)
     buttons.append([Button.inline('🔙 𝐁𝐚𝐜𝐤', b'menu_saver')])
     
-    await event.edit(f"📉 **𝐃𝐄𝐋𝐄𝐓𝐄𝐃 𝐌𝐄𝐒𝐒𝐀𝐆𝐄𝐒**\nSelect a user to view:", buttons=buttons)
+    try:
+        await event.edit(f"📉 **𝐃𝐄𝐋𝐄𝐓𝐄𝐃 𝐌𝐄𝐒𝐒𝐀𝐆𝐄𝐒**\nSelect a user to view:", buttons=buttons)
+    except MessageNotModifiedError:
+        pass
 
 async def show_deleted_for_user(event, user_id, page=0, back_to_page=0):
     msgs = get_deleted_messages(sender_id=user_id)
@@ -945,8 +960,10 @@ async def show_deleted_for_user(event, user_id, page=0, back_to_page=0):
     
     # Back button returns to the specific page of the list
     buttons.append([Button.inline('🔙 𝐁𝐚𝐜𝐤', f'svr_page_{back_to_page}'.encode())])
-    
-    await event.edit(content, buttons=buttons)
+    try:
+        await event.edit(content, buttons=buttons)
+    except MessageNotModifiedError:
+        pass
 
 async def show_anim_menu(event):
     settings = get_animation_settings() # Global settings
@@ -969,7 +986,10 @@ async def show_anim_menu(event):
         [Button.inline(f'➖', b'anim_int_minus'), Button.inline(f'⏲️ 𝐈𝐧𝐭: {settings["interval"]}s', b'noop'), Button.inline(f'➕', b'anim_int_plus')],
         [Button.inline('🔙 𝐁𝐚𝐜𝐤', b'main_menu')]
     ]
-    await event.edit(f"🎬 **𝐀𝐍𝐈𝐌𝐀𝐓𝐈𝐎𝐍 𝐒𝐄𝐓𝐓𝐈𝐍𝐆𝐒**\n\n**Mode:** {mode_text}", buttons=buttons)
+    try:
+        await event.edit(f"🎬 **𝐀𝐍𝐈𝐌𝐀𝐓𝐈𝐎𝐍 𝐒𝐄𝐓𝐓𝐈𝐍𝐆𝐒**\n\n**Mode:** {mode_text}", buttons=buttons)
+    except MessageNotModifiedError:
+        pass
 
 async def show_font_menu(event):
     buttons = [
@@ -979,7 +999,10 @@ async def show_font_menu(event):
         [Button.inline('❌ 𝐍𝐨 𝐅𝐨𝐧𝐭', b'font_none')],
         [Button.inline('🔙 𝐁𝐚𝐜𝐤', b'menu_anim')]
     ]
-    await event.edit("🔤 **𝐒𝐄𝐋𝐄𝐂𝐓 𝐅𝐎𝐍𝐓**\n\nChoose animation font:", buttons=buttons)
+    try:
+        await event.edit("🔤 **𝐒𝐄𝐋𝐄𝐂𝐓 𝐅𝐎𝐍𝐓**\n\nChoose animation font:", buttons=buttons)
+    except MessageNotModifiedError:
+        pass
 
 async def show_mute_menu(event):
     muted = get_all_muted_users()
@@ -989,7 +1012,10 @@ async def show_mute_menu(event):
         buttons.append([Button.inline(f"🔓 Unmute {info['user_name']}", f'mute_un_{uid}'.encode())])
         
     buttons.append([Button.inline('🔙 𝐁𝐚𝐜𝐤', b'main_menu')])
-    await event.edit(f"🔇 **𝐌𝐔𝐓𝐄𝐃 𝐔𝐒𝐄𝐑𝐒** ({len(muted)})\nClick to unmute:", buttons=buttons)
+    try:
+        await event.edit(f"🔇 **𝐌𝐔𝐓𝐄𝐃 𝐔𝐒𝐄𝐑𝐒** ({len(muted)})\nClick to unmute:", buttons=buttons)
+    except MessageNotModifiedError:
+        pass
 
 async def show_about_menu(event):
     config = load_about_config()
@@ -1020,6 +1046,8 @@ async def show_about_menu(event):
     if hasattr(event, 'data') and event.data:
         try:
             await event.edit(text, buttons=buttons)
+        except MessageNotModifiedError:
+            pass
         except:
             await event.respond(text, buttons=buttons)
     else:
