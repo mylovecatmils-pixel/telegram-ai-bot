@@ -2123,7 +2123,7 @@ async def handle_digit_selection(event, message_text):
         return False
         
     users = load_temp_selection(chat_id)
-    if users === None:
+    if users is None:
         return False
         
     try:
