@@ -1246,55 +1246,73 @@ async def bot_callback_handler(event):
 
     # --- ANIM ACTIONS ---
     elif data.startswith('anim_'):
-        config = load_animation_config()
-        key = 'global'
-        if key not in config:
-            config[key] = {'mode': None, 'font': None, 'duration': 40, 'interval': 0.5}
-        
-        # Ensure all keys exist
-        if 'duration' not in config[key]: config[key]['duration'] = 40
-        if 'interval' not in config[key]: config[key]['interval'] = 0.5
-        if 'mode' not in config[key]: config[key]['mode'] = None
-        if 'font' not in config[key]: config[key]['font'] = None
+        try:
+            config = load_animation_config()
+            key = 'global'
+            if key not in config:
+                config[key] = {'mode': None, 'font': None, 'duration': 40, 'interval': 0.5}
+            
+            # Ensure all keys exist and are correct types
+            if 'duration' not in config[key]: config[key]['duration'] = 40
+            if 'interval' not in config[key]: config[key]['interval'] = 0.5
+            if 'mode' not in config[key]: config[key]['mode'] = None
+            if 'font' not in config[key]: config[key]['font'] = None
+            
+            # Force numeric types
+            try:
+                config[key]['duration'] = int(float(config[key]['duration']))
+                config[key]['interval'] = float(config[key]['interval'])
+            except:
+                config[key]['duration'] = 40
+                config[key]['interval'] = 0.5
 
-        if data == 'anim_rainbow':
-            config[key]['mode'] = 'rainbow' if config[key]['mode'] != 'rainbow' else None
-        elif data == 'anim_caps':
-            config[key]['mode'] = 'caps' if config[key]['mode'] != 'caps' else None
-        elif data == 'anim_font_menu':
+            if data == 'anim_rainbow':
+                config[key]['mode'] = 'rainbow' if config[key]['mode'] != 'rainbow' else None
+            elif data == 'anim_caps':
+                config[key]['mode'] = 'caps' if config[key]['mode'] != 'caps' else None
+            elif data == 'anim_font_menu':
+                save_animation_config(config)
+                await show_font_menu(event)
+                return
+            elif data == 'anim_dur_plus':
+                config[key]['duration'] += 10
+            elif data == 'anim_dur_minus':
+                config[key]['duration'] = max(10, config[key]['duration'] - 10)
+            elif data == 'anim_int_plus':
+                config[key]['interval'] += 0.5
+            elif data == 'anim_int_minus':
+                config[key]['interval'] = max(0.5, config[key]['interval'] - 0.5)
+            
             save_animation_config(config)
-            await show_font_menu(event)
-            return
-        elif data == 'anim_dur_plus':
-            config[key]['duration'] += 10
-        elif data == 'anim_dur_minus':
-            config[key]['duration'] = max(10, config[key]['duration'] - 10)
-        elif data == 'anim_int_plus':
-            config[key]['interval'] += 0.5
-        elif data == 'anim_int_minus':
-            config[key]['interval'] = max(0.5, config[key]['interval'] - 0.5)
-        
-        save_animation_config(config)
-        await show_anim_menu(event)
-    
+            await show_anim_menu(event)
+        except Exception as e:
+            print(f"❌ Anim Callback Error: {e}")
+            import traceback
+            traceback.print_exc()
+            await event.answer(f"❌ Error: {e}", alert=True)
+
     # --- FONT ACTIONS ---
     elif data.startswith('font_'):
-        font = data.split('_')[1]
-        if font == 'none':
-            font = None
-        
-        config = load_animation_config()
-        key = 'global'
-        if key not in config:
-            config[key] = {'mode': None, 'duration': 40, 'interval': 0.5, 'font': None}
-        
-        # Ensure keys exist
-        if 'duration' not in config[key]: config[key]['duration'] = 40
-        if 'interval' not in config[key]: config[key]['interval'] = 0.5
+        try:
+            font = data.split('_')[1]
+            if font == 'none':
+                font = None
             
-        config[key]['font'] = font
-        save_animation_config(config)
-        await show_anim_menu(event)
+            config = load_animation_config()
+            key = 'global'
+            if key not in config:
+                config[key] = {'mode': None, 'duration': 40, 'interval': 0.5, 'font': None}
+            
+            # Ensure keys exist
+            if 'duration' not in config[key]: config[key]['duration'] = 40
+            if 'interval' not in config[key]: config[key]['interval'] = 0.5
+                
+            config[key]['font'] = font
+            save_animation_config(config)
+            await show_anim_menu(event)
+        except Exception as e:
+            print(f"❌ Font Callback Error: {e}")
+            await event.answer(f"❌ Error: {e}", alert=True)
 
     # --- MUTE ACTIONS ---
     elif data.startswith('mute_un_'):
