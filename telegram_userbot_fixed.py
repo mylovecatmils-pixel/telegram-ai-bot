@@ -2881,7 +2881,17 @@ async def main():
         else:
             print(f'🤖 Запуск управляющего бота...')
             try:
-                await bot.start(bot_token=BOT_TOKEN)
+                # Try to start without token first if session exists
+                if os.path.exists(f'{SESSION_NAME}.session'):
+                     try:
+                        await bot.connect()
+                        if not await bot.is_user_authorized():
+                            await bot.start(bot_token=BOT_TOKEN)
+                     except:
+                        await bot.start(bot_token=BOT_TOKEN)
+                else:
+                    await bot.start(bot_token=BOT_TOKEN)
+                    
                 bot_me = await bot.get_me()
                 BOT_ID = bot_me.id
                 print(f'✅ Бот запущен: @{bot_me.username} (ID: {BOT_ID})')
